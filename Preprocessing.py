@@ -33,6 +33,7 @@ from PreprocessingFunc import RaiseFlag
 from PreprocessingFunc import ActiveSats
 from PreprocessingFunc import UpdatePrevPro
 from PreprocessingFunc import DetectCycleSlip
+from PreprocessingFunc import UpdateBuff
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -211,14 +212,14 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     for Prn, Gap in GapCounter.items():
         if Gap > int(Conf["HATCH_GAP_TH"]) and Gap < 10800:
             GapDect.append(Prn)
-
+    
     # QUALITY CHECK FLAGS
     # ----------------------------------------------------------
 
     # Loop over all the active satellites
     for Sat, Value in PreproObsInfo.items():
         if Value["ValidL1"] == 1:
-
+                
         # FLAG 2: Minimum Mask Angle 
         # Raise a flag when the satellite's elevation is lower than the mask angle
 
@@ -252,16 +253,20 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
                 
             elif int(Conf["MIN_NCS_TH"][0]) == 1 and PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 0:
                 FlagNum = REJECTION_CAUSE["CYCLE_SLIP"]
-                CSFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
-                if CSFlag:
+                CsFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
+                if CsFlag:
                     RaiseFlag(Sat, FlagNum, PreproObsInfo)
+                
+                # Update the cycle slip buffer
+                UpdateBuff(PrevPreproObsInfo[Sat]["CsBuff"], CsFlag)
+                PrevPreproObsInfo[Sat]["CsIdx"] = sum(PrevPreproObsInfo[Sat]["CsBuff"])
                     
             else:
                 None
 
-        # Update PrevPreproObsInfo corresponding of each satellite for next epoch
-        UpdatePrevPro(Sat, Value, PrevPreproObsInfo)
-    
+        # Update PrevPreproObsInfo corresponding to each satellite for next epoch
+        UpdatePrevPro(Sat, Value, PrevPreproObsInfo, Conf)
+            
     # End of Quality Checks loop
 
     return PreproObsInfo

@@ -66,6 +66,13 @@ def RaiseFlag(Sat, FlagNum, PreproObsInfo):
 
     # Function raising a flag
 
+    PreproObsInfo[Sat]["ValidL1"] = 0
+    PreproObsInfo[Sat]["RejectionCause"] = FlagNum
+
+def RaiseFlagB(Sat, FlagNum, PreproObsInfo):
+
+    # Function raising a flag while assuring a minimum number of satellites per epoch
+
     # Check if there are enough satellites to compute a solution
     SatsGpsInit, SatsGalInit = ActiveSats(PreproObsInfo)[1], ActiveSats(PreproObsInfo)[2]
 
@@ -102,10 +109,13 @@ def ChannelsFlag(ActSats, NChannels, FlagNum, Const, PreproObsInfo):
             RaiseFlag(Sat, FlagNum, PreproObsInfo)
             SatElev.pop(0)
 
-def UpdatePrevPro(Sat, Value, PrevPreproObsInfo):
+def UpdatePrevPro(Sat, Value, PrevPreproObsInfo, Conf):
 
     # Function updating the values of PrevPreproObsInfo dictionary
 
+    # Parameters for computing data gaps
+    PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
+    
     # Parameters for computing cycle slips
     if Value["ValidL1"] == 1:
         PrevPreproObsInfo[Sat]["L1_n_3"] = PrevPreproObsInfo[Sat]["L1_n_2"]
@@ -114,28 +124,20 @@ def UpdatePrevPro(Sat, Value, PrevPreproObsInfo):
         PrevPreproObsInfo[Sat]["t_n_3"] = PrevPreproObsInfo[Sat]["t_n_2"]
         PrevPreproObsInfo[Sat]["t_n_2"] = PrevPreproObsInfo[Sat]["t_n_1"]
         PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
-   
-    # Update cycle slips buffer
-    if Value["RejectionCause"] == 5:
-        PrevPreproObsInfo[Sat]["CsBuff"].append(1)
-        PrevPreproObsInfo[Sat]["CsBuff"].pop(0)
-    else:
-        PrevPreproObsInfo[Sat]["CsBuff"].append(0)
-        PrevPreproObsInfo[Sat]["CsBuff"].pop(0)
-    PrevPreproObsInfo[Sat]["CsIdx"] = sum(PrevPreproObsInfo[Sat]["CsBuff"])
-
-    # Parameters for computing data gaps
-    PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1"]
     
-    # Activate Hatch Filter Flag
-    if Value["RejectionCause"] == 6 or PrevPreproObsInfo[Sat]["CsIdx"] == 3:
+    # Reset hatch filter and cycle slips buffer when required
+    if Value["RejectionCause"] == 6:
         PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+    elif PrevPreproObsInfo[Sat]["CsIdx"] == int(Conf["MIN_NCS_TH"][2]):
+        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+        PrevPreproObsInfo[Sat]["CsIdx"] = 0
+        ResetBuff(PrevPreproObsInfo[Sat]["CsBuff"])
     else:
         PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
-    # PrevPreproObsInfo[Sat]["Ksmooth"] =
-
+    
     # Other parameters
-    PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
+    PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1"]
+    # PrevPreproObsInfo[Sat]["Ksmooth"] =
     # PrevPreproObsInfo[Sat]["PrevSmoothC1"] = SatInfo["SmoothC1"]
     # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = SatInfo["RangeRateL1"]
     # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = SatInfo["PhaseRateL1"]
@@ -177,7 +179,28 @@ def DetectCycleSlip(Sat, Value, PrevPreproObsInfo, CsThreshold):
     # Cycle Slip detection
     CycleSlip = CsResiduals > CsThreshold
     return CycleSlip
+
+def UpdateBuff(CsBuff, Flag):
+
+    # Function updating the cycle slips buffer
+
+    CsBuff.pop(0)
+    if Flag:
+        CsBuff.append(1)
+    else:
+        CsBuff.append(0)
+
+    return CsBuff
     
+def ResetBuff(CsBuff):
+
+    # Function reseting the cycle slips buffer
+
+    for i in range(len(CsBuff)):
+        CsBuff[i] = 0
+
+    return CsBuff
+
 
 ########################################################################
 # END OF PREPROCESSING AUXILIARY FUNCTIONS MODULE

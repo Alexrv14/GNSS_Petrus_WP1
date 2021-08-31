@@ -169,28 +169,6 @@ for Rcvr in RcvrInfo.keys():
                     # ----------------------------------------------------------
                     PreproObsInfo = runPreProcMeas(Conf, RcvrInfo[Rcvr], ObsInfo, PrevPreproObsInfo)
 
-                    # Dump values of PreproObsInfo onto PrevPreproObsInfo
-
-                    for Sat, SatInfo in PreproObsInfo.items():
-                        # PrevPreproObsInfo[Sat]["L1_n_1"] = 
-                        # PrevPreproObsInfo[Sat]["L1_n_2"] =
-                        # PrevPreproObsInfo[Sat]["L1_n_3"] =
-                        # PrevPreproObsInfo[Sat]["t_n_1"] =
-                        # PrevPreproObsInfo[Sat]["t_n_2"] =
-                        # PrevPreproObsInfo[Sat]["t_n_3"] =
-                        # PrevPreproObsInfo[Sat]["CsBuff"] =
-                        # PrevPreproObsInfo[Sat]["CsIdx"] =
-                        # PrevPreproObsInfo[Sat]["ResetHatchFilter"] =
-                        # PrevPreproObsInfo[Sat]["Ksmooth"] =
-                        PrevPreproObsInfo[Sat]["PrevEpoch"] = SatInfo["Sod"]
-                        PrevPreproObsInfo[Sat]["PrevL1"] = SatInfo["L1"]
-                        # PrevPreproObsInfo[Sat]["PrevSmoothC1"] = SatInfo["SmoothC1"]
-                        # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = SatInfo["RangeRateL1"]
-                        # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = SatInfo["PhaseRateL1"]
-                        # PrevPreproObsInfo[Sat]["PrevGeomFree"] = SatInfo["GeomFree"]
-                        # PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] =
-                        PrevPreproObsInfo[Sat]["PrevRej"] = SatInfo["RejectionCause"]
-
                     # If PREPRO outputs are requested
                     if Conf["PREPRO_OUT"] == 1:
                         # Generate output file

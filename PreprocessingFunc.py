@@ -102,6 +102,47 @@ def ChannelsFlag(ActSats, NChannels, FlagNum, Const, PreproObsInfo):
             RaiseFlag(Sat, FlagNum, PreproObsInfo)
             SatElev.pop(0)
 
+def UpdatePrevPro(Sat, Value, PrevPreproObsInfo):
+
+    # Function updating the values of PrevPreproObsInfo dictionary
+
+    # Parameters for computing cycle slips
+    if Value["ValidL1"] == 1:
+        PrevPreproObsInfo[Sat]["L1_n_1"] = Value["L1"]
+        PrevPreproObsInfo[Sat]["L1_n_2"] = PrevPreproObsInfo[Sat]["L1_n_1"]
+        PrevPreproObsInfo[Sat]["L1_n_3"] = PrevPreproObsInfo[Sat]["L1_n_2"]
+        PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
+        PrevPreproObsInfo[Sat]["t_n_2"] = PrevPreproObsInfo[Sat]["t_n_1"]
+        PrevPreproObsInfo[Sat]["t_n_3"] = PrevPreproObsInfo[Sat]["t_n_2"]
+
+    # Parameters for computing data gaps
+    PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1"]
+
+    # Parameters for applying the Hatch Filter
+    if Value["RejectionCause"] == 6:
+        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+    else:
+        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
+    # PrevPreproObsInfo[Sat]["CsBuff"] =
+    # PrevPreproObsInfo[Sat]["CsIdx"] =
+    # PrevPreproObsInfo[Sat]["Ksmooth"] =
+
+    # Other parameters
+    PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
+    # PrevPreproObsInfo[Sat]["PrevSmoothC1"] = SatInfo["SmoothC1"]
+    # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = SatInfo["RangeRateL1"]
+    # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = SatInfo["PhaseRateL1"]
+    # PrevPreproObsInfo[Sat]["PrevGeomFree"] = SatInfo["GeomFree"]
+    # PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] =
+    PrevPreproObsInfo[Sat]["PrevRej"] = Value["RejectionCause"]
+
+# def DetectCycleSlip(Meas,CsThreshold):
+
+    # Function detecting a cycle slip by comparing the Carrier Phase L1 at epoch t obtained from the 
+    # observation file with the Carrier Phase computed from a 3rd order Lagrange Interpolation
+
+       
+
 ########################################################################
 # END OF PREPROCESSING AUXILIARY FUNCTIONS MODULE
 ########################################################################

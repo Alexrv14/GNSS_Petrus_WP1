@@ -31,6 +31,7 @@ from InputOutput import FLAG, VALUE, TH, CSNEPOCHS
 from PreprocessingFunc import ChannelsFlag
 from PreprocessingFunc import RaiseFlag
 from PreprocessingFunc import ActiveSats
+from PreprocessingFunc import UpdatePrevPro
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -244,10 +245,15 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             elif Sat in GapDect:
                 FlagNum = REJECTION_CAUSE["DATA_GAP"]
                 RaiseFlag(Sat, FlagNum, PreproObsInfo)
-
+                
             else:
                 None
+
+        # Update PrevPreproObsInfo corresponding of each satellite for next epoch
+        UpdatePrevPro(Sat, Value, PrevPreproObsInfo)
     
+    # End of Quality Checks loop
+
     return PreproObsInfo
 
 # End of function runPreProcMeas()

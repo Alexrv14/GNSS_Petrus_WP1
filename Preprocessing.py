@@ -32,6 +32,7 @@ from PreprocessingFunc import ChannelsFlag
 from PreprocessingFunc import RaiseFlag
 from PreprocessingFunc import ActiveSats
 from PreprocessingFunc import UpdatePrevPro
+from PreprocessingFunc import DetectCycleSlip
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -245,7 +246,16 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             elif Sat in GapDect:
                 FlagNum = REJECTION_CAUSE["DATA_GAP"]
                 RaiseFlag(Sat, FlagNum, PreproObsInfo)
+
+        # FLAG 5 : Cycle Slips
+        # Raise a flag when a cycle slip is detected 
                 
+            elif int(Conf["MIN_NCS_TH"][0]) == 1 and PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 0:
+                FlagNum = REJECTION_CAUSE["CYCLE_SLIP"]
+                CSFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
+                if CSFlag:
+                    RaiseFlag(Sat, FlagNum, PreproObsInfo)
+                    
             else:
                 None
 

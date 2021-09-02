@@ -34,6 +34,8 @@ from PreprocessingFunc import ActiveSats
 from PreprocessingFunc import UpdatePrevPro
 from PreprocessingFunc import DetectCycleSlip
 from PreprocessingFunc import UpdateBuff
+from PreprocessingFunc import ResetCsDetector
+from PreprocessingFunc import ResetBuff
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -86,6 +88,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
     # Initialize output
     PreproObsInfo = OrderedDict({})
+
+    # Other internal variables definition 
+    GapCounter = OrderedDict({})                # Gap Detector definition
+    HacthFilterReset = OrderedDict({})          # Hatch Filter reset
+    Ksmooth = OrderedDict({})                   # Hatch Filter K
 
     # Loop over satellites
     for SatObs in ObsInfo:
@@ -148,13 +155,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         SatPreproObsInfo["L2"] = float(SatObs[ObsIdx["L2"]])
         # Get GPS L2 C/No
         SatPreproObsInfo["S2"] = float(SatObs[ObsIdx["S2"]])
-        # Get Smoothed L1CA 
-        # SatPreproObsInfo["SmoothC1"] =
         # Get Geom-free in Phases
         # SatPreproObsInfo["GeomFree"] =
         # Get t-1 Geom-free in Phases
         # SatPreproObsInfo["GeomFreePrev"] =
-        # Get L1 Measurement Status
+        # Get L2 Measurement Status
         # SatPreproObsInfo["StatusL2"] =
         # Get L1 Smoothing status
         # SatPreproObsInfo["Status"] =
@@ -175,7 +180,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
         # Prepare output for the satellite
         PreproObsInfo[SatLabel] = SatPreproObsInfo
-
+    
     # Limit the satellites to the Number of Channels
     # ----------------------------------------------------------
     # Discard the satellites having lower elevation when the Number of Sats > Number of Channels
@@ -183,7 +188,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     # Identify the number of active satellites per constellation
     ActSats = ActiveSats(PreproObsInfo)
     
-    # FLAG 1 : Maximum Number of Channels per constellation
+    # Maximum Number of Channels per constellation
     # Rise a flag for those satellites having lower elevations
 
     # GPS Satellites
@@ -196,76 +201,112 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     ActSatsGal = ActSats[2]
     NChannelsGal = int(Conf["NCHANNELS_GAL"])
     ChannelsFlag(ActSatsGal, NChannelsGal, FlagNum, "E", PreproObsInfo)
-
-    # VARIABLES DEFINITION
-    # ----------------------------------------------------------
     
-    # Gap Detector definition
-    GapCounter = OrderedDict({})
-    for Prn, Epoch in PreproObsInfo.items():
-        if PrevPreproObsInfo[Prn]["PrevEpoch"] == 0:
-            GapCounter[Prn] = int(Conf["SAMPLING_RATE"])
-        else:
-            GapCounter[Prn] = int(Epoch["Sod"] - PrevPreproObsInfo[Prn]["PrevEpoch"])
-
-    GapDect = []
-    for Prn, Gap in GapCounter.items():
-        if Gap > int(Conf["HATCH_GAP_TH"]) and Gap < 10800:
-            GapDect.append(Prn)
-    
-    # QUALITY CHECK FLAGS
+    # Quality checks and signal smoothing
     # ----------------------------------------------------------
 
-    # Loop over all the active satellites
+    # Loop over all the active satellites by epoch
     for Sat, Value in PreproObsInfo.items():
-        if Value["ValidL1"] == 1:
+        HacthFilterReset[Sat] = 0
+        
+        # Check if the satellite is not valid
+        if Value["ValidL1"] != 1:
+            continue
                 
-        # FLAG 2: Minimum Mask Angle 
+        # Minimum Mask Angle
+        # ----------------------------------------------------------
         # Raise a flag when the satellite's elevation is lower than the mask angle
 
-            if Value["Elevation"] < float(Conf["ELEV_NOISE_TH"]): 
-                FlagNum = REJECTION_CAUSE["MASKANGLE"]
-                RaiseFlag(Sat, FlagNum, PreproObsInfo)
+        if Value["Elevation"] < float(Rcvr[RcvrIdx["MASK"]]): 
+            FlagNum = REJECTION_CAUSE["MASKANGLE"]
+            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            continue
 
-        # FLAG 3 : Signal to Noise Ratio C/N0
+        # Signal to Noise Ratio C/N0
+        # ----------------------------------------------------------
         # Raise a flag when the carrier S/N0 is over the limit
 
-            elif int(Conf["MIN_CNR"][0]) == 1 and Value["S1"] < float(Conf["MIN_CNR"][1]):
-                FlagNum = REJECTION_CAUSE["MIN_CNR"]
-                RaiseFlag(Sat, FlagNum, PreproObsInfo)
+        if int(Conf["MIN_CNR"][0]) == 1 and Value["S1"] < float(Conf["MIN_CNR"][1]):
+            FlagNum = REJECTION_CAUSE["MIN_CNR"]
+            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            continue
          
-        # FLAG 4 : Maximum Pseudo-Range
+        # Maximum Pseudo-Range
+        # ----------------------------------------------------------
         # Raise a flag when the code Pseudo-Range exceeds a threshold
 
-            elif int(Conf["MAX_PSR_OUTRNG"][0]) == 1 and Value["C1"] > float(Conf["MAX_PSR_OUTRNG"][1]):
-                FlagNum = REJECTION_CAUSE["MAX_PSR_OUTRNG"]
+        if int(Conf["MAX_PSR_OUTRNG"][0]) == 1 and Value["C1"] > float(Conf["MAX_PSR_OUTRNG"][1]):
+            FlagNum = REJECTION_CAUSE["MAX_PSR_OUTRNG"]
+            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            continue
+
+        # Detect Data Gaps in the Observation Information
+        # ----------------------------------------------------------
+        # Raise a flag when a gap is longer than the maximum gap defined in the configuration
+        # Attention: Visibility periods are not considered as Data Gaps
+
+        # Compute the DeltaT taking into account the first appearance of a satellite
+        DeltaT = int(Value["Sod"] - PrevPreproObsInfo[Sat]["PrevEpoch"])
+        if PrevPreproObsInfo[Sat]["PrevEpoch"] == 0:
+            DeltaT = int(Conf["SAMPLING_RATE"])
+
+        GapCounter[Sat] = DeltaT
+        if GapCounter[Sat] > int(Conf["HATCH_GAP_TH"]):
+            FlagNum = REJECTION_CAUSE["DATA_GAP"]
+            HacthFilterReset[Sat] = 1
+            # Do not tag gaps due to the visibility periods as data gaps
+            if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
                 RaiseFlag(Sat, FlagNum, PreproObsInfo)
 
-        # FLAG 6 : Data Gaps
-        # Raise a flag when a gap in the data is detected
-
-            elif Sat in GapDect:
-                FlagNum = REJECTION_CAUSE["DATA_GAP"]
-                RaiseFlag(Sat, FlagNum, PreproObsInfo)
-
-        # FLAG 5 : Cycle Slips
+        # Cycle Slips
+        # ----------------------------------------------------------
         # Raise a flag when a cycle slip is detected 
                 
-            elif int(Conf["MIN_NCS_TH"][0]) == 1 and PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 0:
-                FlagNum = REJECTION_CAUSE["CYCLE_SLIP"]
-                CsFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
-                if CsFlag:
-                    RaiseFlag(Sat, FlagNum, PreproObsInfo)
-                
-                # Update the cycle slip buffer
-                UpdateBuff(PrevPreproObsInfo[Sat]["CsBuff"], CsFlag)
-                PrevPreproObsInfo[Sat]["CsIdx"] = sum(PrevPreproObsInfo[Sat]["CsBuff"])
-                    
-            else:
-                None
+        if int(Conf["MIN_NCS_TH"][0]) == 1 and HacthFilterReset[Sat] == 0:
+            FlagNum = REJECTION_CAUSE["CYCLE_SLIP"]
+            CsFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
+            if CsFlag == True:
+                RaiseFlag(Sat, FlagNum, PreproObsInfo)
+                print("CS Detected for", Sat, "at epoch", Value["Sod"])
 
-        # Update PrevPreproObsInfo corresponding to each satellite for next epoch
-        UpdatePrevPro(Sat, Value, PrevPreproObsInfo, Conf)
+            # Update the cycle slip buffer
+            UpdateBuff(PrevPreproObsInfo[Sat]["CsBuff"], CsFlag)
+            if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
+                HacthFilterReset[Sat] = 1
+                ResetBuff(PrevPreproObsInfo[Sat]["CsBuff"])
+                print("Hatch Filter Reset", Sat, "at epoch", Value["Sod"])
+
+        # if Sat == "G28" and Value["Sod"] > 42450.0 and Value["Sod"] <  42500.0:
+            # print(Value["Sod"],Value["L1"],Value["RejectionCause"],GapCounter[Sat])
+            # print("-------------")
+            # print(PrevPreproObsInfo[Sat]["CsBuff"])
+            # print(PrevPreproObsInfo[Sat]["L1_n_1"],PrevPreproObsInfo[Sat]["L1_n_2"],PrevPreproObsInfo[Sat]["L1_n_3"])
+            # print(PrevPreproObsInfo[Sat]["t_n_1"],PrevPreproObsInfo[Sat]["t_n_2"],PrevPreproObsInfo[Sat]["t_n_3"])
+            # print("-------------")
+        
+        # Hatch Filter implementation
+        # ----------------------------------------------------------
+        # Smooth the code C1 measurements with the Carrier Phase L1
+
+        # Check if the Hatch filter must be reset
+        # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1 or HacthFilterReset[Sat] == 1:
+            # Ksmooth = 1
+            # PrevPreproObsInfo[Sat]["HatchInit"] = Value["Sod"]
+        # else: 
+            # Ksmooth[Sat] = PrevPreproObsInfo[Sat]["Ksmooth"] + DeltaT
+
+        # Calculate the alpha parameter
+        # if Ksmooth < int(Conf["HATCH_TIME"]):
+            # alpha = 1/Ksmooth
+        # else:
+            # alpha = 1/int(Conf["HATCH_TIME"])
+
+        # Obtain the Smoothed C1 at a given epoch
+        # PredSmoothC1 = (PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"]))
+        # Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1
+        
+    # Update PrevPreproObsInfo corresponding to each satellite for next epoch
+    UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset, Ksmooth)
             
     # End of Quality Checks loop
 

@@ -109,41 +109,44 @@ def ChannelsFlag(ActSats, NChannels, FlagNum, Const, PreproObsInfo):
             RaiseFlag(Sat, FlagNum, PreproObsInfo)
             SatElev.pop(0)
 
-def UpdatePrevPro(Sat, Value, PrevPreproObsInfo, Conf):
+def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset, Ksmooth):
 
     # Function updating the values of PrevPreproObsInfo dictionary
+    
+    for Sat, Value in PreproObsInfo.items():
 
-    # Parameters for computing data gaps
-    PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
+        # Parameters for computing data gaps
+        PrevPreproObsInfo[Sat]["PrevRej"] = Value["RejectionCause"]
+        if Value["RejectionCause"] == 0:
+            PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
+        if HatchFilterReset[Sat] == 1:
+            PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
     
-    # Parameters for computing cycle slips
-    if Value["ValidL1"] == 1:
-        PrevPreproObsInfo[Sat]["L1_n_3"] = PrevPreproObsInfo[Sat]["L1_n_2"]
-        PrevPreproObsInfo[Sat]["L1_n_2"] = PrevPreproObsInfo[Sat]["L1_n_1"]
-        PrevPreproObsInfo[Sat]["L1_n_1"] = Value["L1"]
-        PrevPreproObsInfo[Sat]["t_n_3"] = PrevPreproObsInfo[Sat]["t_n_2"]
-        PrevPreproObsInfo[Sat]["t_n_2"] = PrevPreproObsInfo[Sat]["t_n_1"]
-        PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
+        # Parameters for computing cycle slips
+        if Value["RejectionCause"] == 0:
+            PrevPreproObsInfo[Sat]["L1_n_3"] = PrevPreproObsInfo[Sat]["L1_n_2"]
+            PrevPreproObsInfo[Sat]["L1_n_2"] = PrevPreproObsInfo[Sat]["L1_n_1"]
+            PrevPreproObsInfo[Sat]["L1_n_1"] = Value["L1"]
+            PrevPreproObsInfo[Sat]["t_n_3"] = PrevPreproObsInfo[Sat]["t_n_2"]
+            PrevPreproObsInfo[Sat]["t_n_2"] = PrevPreproObsInfo[Sat]["t_n_1"]
+            PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
+        if HatchFilterReset[Sat] == 1:
+            ResetCsDetector(Sat, Value, PrevPreproObsInfo)
+
+        # Hatch filter/CS buffer reset whenever required
+        if Value["RejectionCause"] == 0:
+            PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
     
-    # Reset hatch filter and cycle slips buffer when required
-    if Value["RejectionCause"] == 6:
-        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-    elif PrevPreproObsInfo[Sat]["CsIdx"] == int(Conf["MIN_NCS_TH"][2]):
-        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-        PrevPreproObsInfo[Sat]["CsIdx"] = 0
-        ResetBuff(PrevPreproObsInfo[Sat]["CsBuff"])
-    else:
-        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
-    
-    # Other parameters
-    PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1"]
-    # PrevPreproObsInfo[Sat]["Ksmooth"] =
-    # PrevPreproObsInfo[Sat]["PrevSmoothC1"] = SatInfo["SmoothC1"]
-    # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = SatInfo["RangeRateL1"]
-    # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = SatInfo["PhaseRateL1"]
-    # PrevPreproObsInfo[Sat]["PrevGeomFree"] = SatInfo["GeomFree"]
-    # PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] =
-    PrevPreproObsInfo[Sat]["PrevRej"] = Value["RejectionCause"]
+        # Hatch filter implementation parameters
+        PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1Meters"]
+        PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth
+        PrevPreproObsInfo[Sat]["PrevSmoothC1"] = Value["SmoothC1"]
+
+        # Other parameters
+        # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = Value["RangeRateL1"]
+        # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = Value["PhaseRateL1"]
+        # PrevPreproObsInfo[Sat]["PrevGeomFree"] = Value["GeomFree"]
+        # PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] =
 
 def DetectCycleSlip(Sat, Value, PrevPreproObsInfo, CsThreshold):
 
@@ -165,7 +168,7 @@ def DetectCycleSlip(Sat, Value, PrevPreproObsInfo, CsThreshold):
     t3 = PrevPreproObsInfo[Sat]["t_n_2"] - PrevPreproObsInfo[Sat]["t_n_3"]
     
     # Return False if there are not enough epochs to compute the TOD
-    if t2 == 0 or t3 == 0:
+    if PrevPreproObsInfo[Sat]["t_n_3"] == 0.0:
         return CycleSlip
     
     # Residuals equation factors
@@ -185,13 +188,13 @@ def UpdateBuff(CsBuff, Flag):
     # Function updating the cycle slips buffer
 
     CsBuff.pop(0)
-    if Flag:
+    if Flag == True:
         CsBuff.append(1)
     else:
         CsBuff.append(0)
 
     return CsBuff
-    
+
 def ResetBuff(CsBuff):
 
     # Function reseting the cycle slips buffer
@@ -200,6 +203,19 @@ def ResetBuff(CsBuff):
         CsBuff[i] = 0
 
     return CsBuff
+    
+def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
+
+    # Function reseting the cycle slips detection parameters
+
+    # Reset the current and previous valid carrier phase measurements
+    PrevPreproObsInfo[Sat]["L1_n_3"] = 0.0
+    PrevPreproObsInfo[Sat]["L1_n_2"] = 0.0
+    PrevPreproObsInfo[Sat]["L1_n_1"] = Value["L1"]
+    # Reset the current and previous valid epochs
+    PrevPreproObsInfo[Sat]["t_n_3"] = 0.0
+    PrevPreproObsInfo[Sat]["t_n_2"] = 0.0
+    PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
 
 
 ########################################################################

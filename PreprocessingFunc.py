@@ -194,15 +194,6 @@ def UpdateBuff(CsBuff, Flag):
         CsBuff.append(0)
 
     return CsBuff
-
-def ResetBuff(CsBuff):
-
-    # Function reseting the cycle slips buffer
-
-    for i in range(len(CsBuff)):
-        CsBuff[i] = 0
-
-    return CsBuff
     
 def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
 
@@ -216,6 +207,9 @@ def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
     PrevPreproObsInfo[Sat]["t_n_3"] = 0.0
     PrevPreproObsInfo[Sat]["t_n_2"] = 0.0
     PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
+    # Reset the cycle slips buffer
+    for i in range(len(PrevPreproObsInfo[Sat]["CsBuff"])):
+        PrevPreproObsInfo[Sat]["CsBuff"][i] = 0
 
 
 ########################################################################

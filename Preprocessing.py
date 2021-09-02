@@ -34,8 +34,6 @@ from PreprocessingFunc import ActiveSats
 from PreprocessingFunc import UpdatePrevPro
 from PreprocessingFunc import DetectCycleSlip
 from PreprocessingFunc import UpdateBuff
-from PreprocessingFunc import ResetCsDetector
-from PreprocessingFunc import ResetBuff
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -218,8 +216,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the satellite's elevation is lower than the mask angle
 
         if Value["Elevation"] < float(Rcvr[RcvrIdx["MASK"]]): 
-            FlagNum = REJECTION_CAUSE["MASKANGLE"]
-            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            RaiseFlag(Sat, REJECTION_CAUSE["MASKANGLE"], PreproObsInfo)
             continue
 
         # Signal to Noise Ratio C/N0
@@ -227,8 +224,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the carrier S/N0 is over the limit
 
         if int(Conf["MIN_CNR"][0]) == 1 and Value["S1"] < float(Conf["MIN_CNR"][1]):
-            FlagNum = REJECTION_CAUSE["MIN_CNR"]
-            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            RaiseFlag(Sat, REJECTION_CAUSE["MIN_CNR"], PreproObsInfo)
             continue
          
         # Maximum Pseudo-Range
@@ -236,8 +232,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the code Pseudo-Range exceeds a threshold
 
         if int(Conf["MAX_PSR_OUTRNG"][0]) == 1 and Value["C1"] > float(Conf["MAX_PSR_OUTRNG"][1]):
-            FlagNum = REJECTION_CAUSE["MAX_PSR_OUTRNG"]
-            RaiseFlag(Sat, FlagNum, PreproObsInfo)
+            RaiseFlag(Sat, REJECTION_CAUSE["MAX_PSR_OUTRNG"], PreproObsInfo)
             continue
 
         # Detect Data Gaps in the Observation Information
@@ -252,37 +247,24 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
         GapCounter[Sat] = DeltaT
         if GapCounter[Sat] > int(Conf["HATCH_GAP_TH"]):
-            FlagNum = REJECTION_CAUSE["DATA_GAP"]
             HacthFilterReset[Sat] = 1
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
-                RaiseFlag(Sat, FlagNum, PreproObsInfo)
+                RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
 
         # Cycle Slips
         # ----------------------------------------------------------
         # Raise a flag when a cycle slip is detected 
                 
         if int(Conf["MIN_NCS_TH"][0]) == 1 and HacthFilterReset[Sat] == 0:
-            FlagNum = REJECTION_CAUSE["CYCLE_SLIP"]
             CsFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
             if CsFlag == True:
-                RaiseFlag(Sat, FlagNum, PreproObsInfo)
-                print("CS Detected for", Sat, "at epoch", Value["Sod"])
+                RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
 
             # Update the cycle slip buffer
             UpdateBuff(PrevPreproObsInfo[Sat]["CsBuff"], CsFlag)
             if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
                 HacthFilterReset[Sat] = 1
-                ResetBuff(PrevPreproObsInfo[Sat]["CsBuff"])
-                print("Hatch Filter Reset", Sat, "at epoch", Value["Sod"])
-
-        # if Sat == "G28" and Value["Sod"] > 42450.0 and Value["Sod"] <  42500.0:
-            # print(Value["Sod"],Value["L1"],Value["RejectionCause"],GapCounter[Sat])
-            # print("-------------")
-            # print(PrevPreproObsInfo[Sat]["CsBuff"])
-            # print(PrevPreproObsInfo[Sat]["L1_n_1"],PrevPreproObsInfo[Sat]["L1_n_2"],PrevPreproObsInfo[Sat]["L1_n_3"])
-            # print(PrevPreproObsInfo[Sat]["t_n_1"],PrevPreproObsInfo[Sat]["t_n_2"],PrevPreproObsInfo[Sat]["t_n_3"])
-            # print("-------------")
         
         # Hatch Filter implementation
         # ----------------------------------------------------------

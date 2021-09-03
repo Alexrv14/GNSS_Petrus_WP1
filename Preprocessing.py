@@ -118,8 +118,8 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             "L2": 0.0,              # GPS L2 carrier phase 
             "S2": 0.0,              # GPS L2 C/No
             "SmoothC1": 0.0,        # Smoothed L1CA 
-            "GeomFree": 0.0,        # Geom-free in Phases
-            "GeomFreePrev": 0.0,    # t-1 Geom-free in Phases
+            "GeomFree": 0.0,        # Geom-free (in m)
+            "GeomFreePrev": 0.0,    # t-1 Geom-free (in m)
             "ValidL1": 1,           # L1 Measurement Status
             "RejectionCause": 0,    # Cause of rejection flag
             "StatusL2": 0,          # L2 Measurement Status
@@ -160,8 +160,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         SatPreproObsInfo["L2"] = float(SatObs[ObsIdx["L2"]])
         # Get GPS L2 C/No
         SatPreproObsInfo["S2"] = float(SatObs[ObsIdx["S2"]])
-        # Get VTEC Rate
-        # SatPreproObsInfo["VtecRate"] =
         # Get Instantaneous AATR
         # SatPreproObsInfo["iAATR"] =
         # Get Iono Mapping
@@ -191,7 +189,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     NChannelsGal = int(Conf["NCHANNELS_GAL"])
     ChannelsFlag(ActSatsGal, NChannelsGal, FlagNum, "E", PreproObsInfo)
     
-    # Quality checks and signal smoothing
+    # QUALITY CHECKS AND SIGNAL SMOOTHING
     # ----------------------------------------------------------
 
     # Loop over all the active satellites by epoch
@@ -357,11 +355,22 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # End of quality checks and signal smoothing
         ########################################################################
 
-        # Signal combination
+        # SIGNAL COMBINATION
         # ----------------------------------------------------------
-        # Compute combination between signals
 
+        # Geometry Free Combination
+        # ----------------------------------------------------------
+        # Compute the pertinent Geometry Free combinations between L1/L2 signals
 
+        if Value["ValidL1"] == 1 and Value["L2"] > 0.0:
+            Value["GeomFree"] = (Value["L1Meters"] - Value["L2"]*Const.GPS_L2_WAVE)/(1-Const.GPS_GAMMA_L1L2)
+
+        # VTEC Rate
+        # ----------------------------------------------------------
+        # Compute the iononospheric gradients
+
+        # if Value["GeomFree"] > 0.0 and Value[]:
+            # DeltaStec = (Value["GeomFree"] - Value["GeomFreePrev"])
 
 
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch

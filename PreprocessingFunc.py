@@ -109,7 +109,7 @@ def ChannelsFlag(ActSats, NChannels, FlagNum, Const, PreproObsInfo):
             RaiseFlag(Sat, FlagNum, PreproObsInfo)
             SatElev.pop(0)
 
-def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset, Ksmooth):
+def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset):
 
     # Function updating the values of PrevPreproObsInfo dictionary
     
@@ -132,11 +132,6 @@ def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset, Ksmooth):
             PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
         if HatchFilterReset[Sat] == 1:
             ResetCsDetector(Sat, Value, PrevPreproObsInfo)
-    
-        # Hatch filter implementation parameters
-        PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1Meters"]
-        # PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth[Sat]
-        PrevPreproObsInfo[Sat]["PrevSmoothC1"] = Value["SmoothC1"]
 
         # Other parameters
         # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = Value["RangeRateL1"]
@@ -206,6 +201,21 @@ def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
     # Reset the cycle slips buffer
     for i in range(len(PrevPreproObsInfo[Sat]["CsBuff"])):
         PrevPreproObsInfo[Sat]["CsBuff"][i] = 0
+
+def ResetHatch(Sat, Value, PrevPreproObsInfo, HacthFilterReset):
+
+    # Function identifying the status of the Hacth Filter
+
+    Reset = False
+    if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1:
+        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
+        Reset = True
+    elif HacthFilterReset[Sat] == 1:
+        Reset = True
+    elif Value["Status"] == 0:
+        Reset = True
+    
+    return Reset
 
 
 ########################################################################

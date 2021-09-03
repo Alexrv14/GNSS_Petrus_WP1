@@ -28,12 +28,13 @@ from collections import OrderedDict
 from COMMON import GnssConstants as Const
 from InputOutput import RcvrIdx, ObsIdx, REJECTION_CAUSE, REJECTION_CAUSE_DESC
 from InputOutput import FLAG, VALUE, TH, CSNEPOCHS
-from PreprocessingFunc import ChannelsFlag
+from PreprocessingFunc import ChannelsFlag, ResetHatch
 from PreprocessingFunc import RaiseFlag
 from PreprocessingFunc import ActiveSats
 from PreprocessingFunc import UpdatePrevPro
 from PreprocessingFunc import DetectCycleSlip
 from PreprocessingFunc import UpdateBuff
+from PreprocessingFunc import ResetHatch
 # import numpy as np
 # from COMMON.Iono import computeIonoMappingFunction
 
@@ -192,7 +193,8 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     # Loop over all the active satellites by epoch
     for Sat, Value in PreproObsInfo.items():
         HacthFilterReset[Sat] = 0
-        
+        Value["Status"] = 1
+
         # Check if the satellite is not valid
         if Value["ValidL1"] != 1:
             continue
@@ -237,7 +239,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
                 RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
-                print("DG Reset detected", Sat, "Epoch", Value["Sod"], "and", Value["RejectionCause"])
 
         # Cycle Slips
         # ----------------------------------------------------------
@@ -260,31 +261,29 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # ----------------------------------------------------------
         # Smooth the code C1 measurements with the Carrier Phase L1 in meters
 
-        # Check if the satellite is still valid (no CS)
-        # if Value["ValidL1"] != 1:
-            # continue
-
         # Check if the Hatch filter must be reset
-        # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] != 1 and HacthFilterReset[Sat] != 1:
+        if ResetHatch(Sat, Value, PrevPreproObsInfo, HacthFilterReset) == False: 
             # Compute Ksmooth and alpha parameters for the filter
-            # Ksmooth[Sat] = PrevPreproObsInfo[Sat]["Ksmooth"] + DeltaT
-            # if Ksmooth < int(Conf["HATCH_TIME"]):
-                # alpha = DeltaT/Ksmooth
-            # else:
-                # alpha = DeltaT/int(Conf["HATCH_TIME"])
-
+            Ksmooth[Sat] = PrevPreproObsInfo[Sat]["Ksmooth"] + DeltaT
+            if Ksmooth[Sat] < int(Conf["HATCH_TIME"]):
+                alpha = DeltaT/Ksmooth[Sat]
+            else:
+                alpha = DeltaT/int(Conf["HATCH_TIME"])
             # Obtain the Smoothed C1 at a given epoch by propagating with the Carrier Phase L1
-            # PredSmoothC1 = (PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"]))
-            # Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1# Ksmooth[Sat] = 1
+            PredSmoothC1 = PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])
+            Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1
 
-        # else:
-            # Ksmooth[Sat] = 1 
-            # Value["SmoothC1"] = Value["C1"]
-            # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1
-                # PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
+        else:
+            Ksmooth[Sat] = 1 
+            Value["SmoothC1"] = Value["C1"]
+        
+        # Update Hatch Filter parameters in PrevPreproObsInfo
+        PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth[Sat]
+        PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1Meters"]
+        PrevPreproObsInfo[Sat]["PrevSmoothC1"] = Value["SmoothC1"]
         
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch
-    UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset, Ksmooth)
+    UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset)
             
     # End of Quality Checks loop
 

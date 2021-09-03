@@ -200,14 +200,12 @@ def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
     for i in range(len(PrevPreproObsInfo[Sat]["CsBuff"])):
         PrevPreproObsInfo[Sat]["CsBuff"][i] = 0
 
-def ResetHatch(Sat, Value, HacthFilterReset):
+def ResetHatch(HacthFilterReset):
 
     # Function identifying the status of the Hacth Filter
 
     Reset = False
-    if HacthFilterReset[Sat] == 1:
-        Reset = True
-    elif Value["Status"] == 0:
+    if HacthFilterReset == 1:
         Reset = True
     
     return Reset

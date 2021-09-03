@@ -90,13 +90,16 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     PreproObsInfo = OrderedDict({})
 
     # Other internal variables definition 
-    GapCounter = OrderedDict({})                # Gap Detector definition
-    HacthFilterReset = OrderedDict({})          # Hatch Filter reset
-    Ksmooth = OrderedDict({})                   # Hatch Filter K
-    PhaseRate = OrderedDict({})                 # Carrier Phase L1 Rate
-    PhaseRateStep = OrderedDict({})             # Carrier Phase L1 Rate Step
-    CodeRate = OrderedDict({})                  # Code C1 Rate
-    CodeRateStep = OrderedDict({})              # Code C1 Rate Step
+    # Dictionaries
+    GapCounter = OrderedDict({})                                        # Gap Detector definition
+    HacthFilterReset = OrderedDict({})                                  # Hatch Filter reset
+    Ksmooth = OrderedDict({})                                           # Hatch Filter K
+    PhaseRate = OrderedDict({})                                         # Carrier Phase L1 Rate
+    PhaseRateStep = OrderedDict({})                                     # Carrier Phase L1 Rate Step
+    CodeRate = OrderedDict({})                                          # Code C1 Rate
+    CodeRateStep = OrderedDict({})                                      # Code C1 Rate Step
+    # Constants
+    HatchConv = float(Conf["HATCH_STATE_F"])*int(Conf["HATCH_TIME"])    # Hatch Filter Convergence Condition   
 
     # Loop over satellites
     for SatObs in ObsInfo:
@@ -157,10 +160,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         SatPreproObsInfo["L2"] = float(SatObs[ObsIdx["L2"]])
         # Get GPS L2 C/No
         SatPreproObsInfo["S2"] = float(SatObs[ObsIdx["S2"]])
-        # Get Geom-free in Phases
-        # SatPreproObsInfo["GeomFree"] =
-        # Get t-1 Geom-free in Phases
-        # SatPreproObsInfo["GeomFreePrev"] =
         # Get VTEC Rate
         # SatPreproObsInfo["VtecRate"] =
         # Get Instantaneous AATR
@@ -243,7 +242,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
                 RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
-                print("DG for", Sat, "Epoch", Value["Sod"])
+                # print("DG for", Sat, "Epoch", Value["Sod"])
 
         # Cycle Slips
         # ----------------------------------------------------------
@@ -258,7 +257,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
                 if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
                     HacthFilterReset[Sat] = 1
                     RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
-                    print("CS for", Sat, "Epoch", Value["Sod"])
+                    # print("CS for", Sat, "Epoch", Value["Sod"])
                 else:
                     Value["ValidL1"] = 0
                     continue
@@ -267,14 +266,13 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # ----------------------------------------------------------
         # Smooth the code C1 measurements with the Carrier Phase L1 in meters
 
-        Value["Status"] = 1
         # Update ResetHatchFilter dictionary
         if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1:
             HacthFilterReset[Sat] = PrevPreproObsInfo[Sat]["ResetHatchFilter"]
             PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
 
         # Check if Hatch filter must be reset
-        if ResetHatch(Sat, Value, HacthFilterReset) == True: 
+        if ResetHatch(HacthFilterReset[Sat]) == True: 
             Ksmooth[Sat] = 0
             Value["SmoothC1"] = Value["C1"]
         else:
@@ -288,21 +286,21 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             PredSmoothC1 = PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])
             Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1
     
-        # Carrier Phase L1 Rate
+        # Carrier Phase Rate L1
         # ----------------------------------------------------------
-        # Raise a flag when the rate of the Carrier Phase L1 exceeds the threshold
+        # Raise a flag when the rate of the Carrier Phase exceeds the threshold
 
         if int(Conf["MAX_PHASE_RATE"][0]) == 1 and HacthFilterReset[Sat] == 0:
             PhaseRate[Sat] = abs(Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])/DeltaT
             if PhaseRate[Sat] > float(Conf["MAX_PHASE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                print("MPR", Sat, "Epoch", Value["Sod"])
+                # print("MPR", Sat, "Epoch", Value["Sod"])
                 continue
 
-        # Carrier Phase L1 Rate Step
+        # Carrier Phase Rate Step L1
         # ----------------------------------------------------------
-        # Raise a flag when the step of the Carrier Phase L1 rate exceeds the threshold
+        # Raise a flag when the step of the Carrier Phase rate exceeds the threshold
 
         if int(Conf["MAX_PHASE_RATE_STEP"][0]) == 1 and HacthFilterReset[Sat] == 0:
             if PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] == 0.0:
@@ -312,10 +310,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
                 if PhaseRateStep[Sat] > float(Conf["MAX_PHASE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                    print("MPRS", Sat, "Epoch", Value["Sod"])
+                    # print("MPRS", Sat, "Epoch", Value["Sod"])
                     continue
 
-        # Code C1 Rate
+        # Code Rate C1
         # ----------------------------------------------------------
         # Raise a flag when the rate of the Code C1 exceeds the threshold
 
@@ -324,10 +322,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if CodeRate[Sat] > float(Conf["MAX_CODE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                print("MCR", Sat, "Epoch", Value["Sod"])
+                # print("MCR", Sat, "Epoch", Value["Sod"])
                 continue
 
-        # Code C1 Rate Step
+        # Code Rate Step C1
         # ----------------------------------------------------------
         # Raise a flag when the step of the Code C1 rate exceeds the threshold
 
@@ -339,13 +337,32 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
                 if CodeRateStep[Sat] > float(Conf["MAX_CODE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                    print("MCRS", Sat, "Epoch", Value["Sod"])
+                    # print("MCRS", Sat, "Epoch", Value["Sod"])
                     continue
 
+        # Carrier Phase L1 smoothing status
+        # ----------------------------------------------------------
+        # Set Status = 1 if the Hacth Filter has converged
+        # Reject the first 6 minutes of data whenever the Hacth Filter is reset
+
+        if Ksmooth[Sat] > HatchConv and Value["ValidL1"] == 1:
+            Value["Status"] = 1
+        else:
+            Value["Status"] = 0
+        
         # Update parameters for computing rates flags in PrevPreproObsInfo
         UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth, PhaseRate, CodeRate)
+        
+        ########################################################################
+        # End of quality checks and signal smoothing
+        ########################################################################
 
-        # End of quality checks and signal smoothing loop
+        # Signal combination
+        # ----------------------------------------------------------
+        # Compute combination between signals
+
+
+
 
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch
     UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset)

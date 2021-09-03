@@ -134,8 +134,6 @@ def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset):
             ResetCsDetector(Sat, Value, PrevPreproObsInfo)
 
         # Other parameters
-        # PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = Value["RangeRateL1"]
-        # PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = Value["PhaseRateL1"]
         # PrevPreproObsInfo[Sat]["PrevGeomFree"] = Value["GeomFree"]
         # PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] =
 
@@ -202,21 +200,38 @@ def ResetCsDetector(Sat, Value, PrevPreproObsInfo):
     for i in range(len(PrevPreproObsInfo[Sat]["CsBuff"])):
         PrevPreproObsInfo[Sat]["CsBuff"][i] = 0
 
-def ResetHatch(Sat, Value, PrevPreproObsInfo, HacthFilterReset):
+def ResetHatch(Sat, Value, HacthFilterReset):
 
     # Function identifying the status of the Hacth Filter
 
     Reset = False
-    if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1:
-        PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
-        Reset = True
-    elif HacthFilterReset[Sat] == 1:
+    if HacthFilterReset[Sat] == 1:
         Reset = True
     elif Value["Status"] == 0:
         Reset = True
     
     return Reset
 
+def UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth, PhaseRate, CodeRate):
+
+    # Function updating the values of PrevPreproObsInfo dictionary related to the Hacth Filter and the
+    # measurement rate flags
+    # IMPORTANT: Notice that only the satellites entering in this loop are:
+    #           - Either valid satellites
+    #           - Satellites from an epoch when the Hacth Filter was reset
+
+    # Common parameters which do not depend on the reset of the Hatch Filter
+    PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth[Sat]
+    PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1Meters"]
+    PrevPreproObsInfo[Sat]["PrevSmoothC1"] = Value["SmoothC1"]
+    
+    # Parameters depending on the reset of the Hatch Filter
+    if HacthFilterReset[Sat] == 1:
+        PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = 0.0
+        PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = 0.0 
+    else:
+        PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = PhaseRate[Sat]
+        PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = CodeRate[Sat]
 
 ########################################################################
 # END OF PREPROCESSING AUXILIARY FUNCTIONS MODULE

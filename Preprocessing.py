@@ -139,8 +139,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         SatPreproObsInfo["Azimuth"] = float(SatObs[ObsIdx["AZIM"]])
         # Get GPS L1C/A pseudorange
         SatPreproObsInfo["C1"] = float(SatObs[ObsIdx["C1"]])
-        # Get GPS L1P pseudorange
-        # SatPreproObsInfo["P1"] = 
         # Get GPS L1 carrier phase (in cycles)
         SatPreproObsInfo["L1"] = float(SatObs[ObsIdx["L1"]])
         # Get GPS L1 carrier phase (in m)
@@ -157,18 +155,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # SatPreproObsInfo["GeomFree"] =
         # Get t-1 Geom-free in Phases
         # SatPreproObsInfo["GeomFreePrev"] =
-        # Get L2 Measurement Status
-        # SatPreproObsInfo["StatusL2"] =
-        # Get L1 Smoothing status
-        # SatPreproObsInfo["Status"] =
-        # Get L1 Code Rate
-        # SatPreproObsInfo["RangeRateL1"] =
-        # Get L1 Code Rate Step
-        # SatPreproObsInfo["RangeRateStepL1"] =
-        # Get L1 Phase Rate
-        # SatPreproObsInfo["PhaseRateL1"] =
-        # Get L1 Phase Rate Step
-        # SatPreproObsInfo["PhaseRateStepL1"] =
         # Get VTEC Rate
         # SatPreproObsInfo["VtecRate"] =
         # Get Instantaneous AATR
@@ -251,41 +237,51 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
                 RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
+                print("DG Reset detected", Sat, "Epoch", Value["Sod"], "and", Value["RejectionCause"])
 
         # Cycle Slips
         # ----------------------------------------------------------
-        # Raise a flag when a cycle slip is detected 
+        # Detect cycle slips in the Carrier Phase L1
                 
         if int(Conf["MIN_NCS_TH"][0]) == 1 and HacthFilterReset[Sat] == 0:
             CsFlag = DetectCycleSlip(Sat, Value, PrevPreproObsInfo, float(Conf["MIN_NCS_TH"][1]))
-            if CsFlag == True:
-                RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
-
-            # Update the cycle slip buffer
+            # Update the cycle slips buffer
             UpdateBuff(PrevPreproObsInfo[Sat]["CsBuff"], CsFlag)
-            if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
-                HacthFilterReset[Sat] = 1
+            # Reset the Hatch Filter and raiso a flag when three consecutive cycle slips are detected
+            if CsFlag == True:
+                if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
+                    HacthFilterReset[Sat] = 1
+                    RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
+                else:
+                    Value["ValidL1"] = 0
+                    continue
         
         # Hatch Filter implementation
         # ----------------------------------------------------------
-        # Smooth the code C1 measurements with the Carrier Phase L1
+        # Smooth the code C1 measurements with the Carrier Phase L1 in meters
+
+        # Check if the satellite is still valid (no CS)
+        # if Value["ValidL1"] != 1:
+            # continue
 
         # Check if the Hatch filter must be reset
-        # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1 or HacthFilterReset[Sat] == 1:
-            # Ksmooth = 1
-            # PrevPreproObsInfo[Sat]["HatchInit"] = Value["Sod"]
-        # else: 
+        # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] != 1 and HacthFilterReset[Sat] != 1:
+            # Compute Ksmooth and alpha parameters for the filter
             # Ksmooth[Sat] = PrevPreproObsInfo[Sat]["Ksmooth"] + DeltaT
+            # if Ksmooth < int(Conf["HATCH_TIME"]):
+                # alpha = DeltaT/Ksmooth
+            # else:
+                # alpha = DeltaT/int(Conf["HATCH_TIME"])
 
-        # Calculate the alpha parameter
-        # if Ksmooth < int(Conf["HATCH_TIME"]):
-            # alpha = 1/Ksmooth
+            # Obtain the Smoothed C1 at a given epoch by propagating with the Carrier Phase L1
+            # PredSmoothC1 = (PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"]))
+            # Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1# Ksmooth[Sat] = 1
+
         # else:
-            # alpha = 1/int(Conf["HATCH_TIME"])
-
-        # Obtain the Smoothed C1 at a given epoch
-        # PredSmoothC1 = (PrevPreproObsInfo[Sat]["PrevSmoothC1"] + (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"]))
-        # Value["SmoothC1"] = alpha*Value["C1"] + (1-alpha)*PredSmoothC1
+            # Ksmooth[Sat] = 1 
+            # Value["SmoothC1"] = Value["C1"]
+            # if PrevPreproObsInfo[Sat]["ResetHatchFilter"] == 1
+                # PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
         
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch
     UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset, Ksmooth)

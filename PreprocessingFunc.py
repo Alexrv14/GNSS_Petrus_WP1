@@ -117,13 +117,13 @@ def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset, Ksmooth):
 
         # Parameters for computing data gaps
         PrevPreproObsInfo[Sat]["PrevRej"] = Value["RejectionCause"]
-        if Value["RejectionCause"] == 0:
+        if Value["ValidL1"] == 1:
             PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
         if HatchFilterReset[Sat] == 1:
             PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
     
         # Parameters for computing cycle slips
-        if Value["RejectionCause"] == 0:
+        if Value["ValidL1"] == 1:
             PrevPreproObsInfo[Sat]["L1_n_3"] = PrevPreproObsInfo[Sat]["L1_n_2"]
             PrevPreproObsInfo[Sat]["L1_n_2"] = PrevPreproObsInfo[Sat]["L1_n_1"]
             PrevPreproObsInfo[Sat]["L1_n_1"] = Value["L1"]
@@ -132,14 +132,10 @@ def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset, Ksmooth):
             PrevPreproObsInfo[Sat]["t_n_1"] = Value["Sod"]
         if HatchFilterReset[Sat] == 1:
             ResetCsDetector(Sat, Value, PrevPreproObsInfo)
-
-        # Hatch filter/CS buffer reset whenever required
-        if Value["RejectionCause"] == 0:
-            PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 0
     
         # Hatch filter implementation parameters
         PrevPreproObsInfo[Sat]["PrevL1"] = Value["L1Meters"]
-        PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth
+        # PrevPreproObsInfo[Sat]["Ksmooth"] = Ksmooth[Sat]
         PrevPreproObsInfo[Sat]["PrevSmoothC1"] = Value["SmoothC1"]
 
         # Other parameters

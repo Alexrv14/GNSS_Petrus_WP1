@@ -210,7 +210,7 @@ def ResetHatch(HacthFilterReset):
     
     return Reset
 
-def UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth, PhaseRate, CodeRate):
+def UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth):
 
     # Function updating the values of PrevPreproObsInfo dictionary related to the Hacth Filter and the
     # measurement rate flags
@@ -228,8 +228,19 @@ def UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth, PhaseR
         PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = 0.0
         PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = 0.0 
     else:
-        PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = PhaseRate[Sat]
-        PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = CodeRate[Sat]
+        PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] = Value["PhaseRateL1"]
+        PrevPreproObsInfo[Sat]["PrevRangeRateL1"] = Value["RangeRateL1"]
+
+def UpdateGeomFree(Sat, Value, PrevPreproObsInfo, HacthFilterReset):
+
+    # Function updating the values of PrevPreproObsInfo dictionary related to GeomFree combination
+    # IMPORTANT: Notice that only the satellites entering in this loop are:
+    #           - Either valid satellites
+    #           - Satellites from an epoch when the Hacth Filter was reset
+
+    PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"] = Value["Sod"]
+    PrevPreproObsInfo[Sat]["PrevGeomFree"] = Value["GeomFree"]
+
 
 ########################################################################
 # END OF PREPROCESSING AUXILIARY FUNCTIONS MODULE

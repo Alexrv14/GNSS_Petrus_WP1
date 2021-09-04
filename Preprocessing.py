@@ -36,8 +36,8 @@ from PreprocessingFunc import DetectCycleSlip
 from PreprocessingFunc import UpdateBuff
 from PreprocessingFunc import ResetHatch
 from PreprocessingFunc import UpdateRates
-# import numpy as np
-# from COMMON.Iono import computeIonoMappingFunction
+from PreprocessingFunc import UpdateGeomFree
+from COMMON.Iono import computeIonoMappingFunction
 
 # Preprocessing internal functions
 #-----------------------------------------------------------------------
@@ -94,10 +94,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
     GapCounter = OrderedDict({})                                        # Gap Detector definition
     HacthFilterReset = OrderedDict({})                                  # Hatch Filter reset
     Ksmooth = OrderedDict({})                                           # Hatch Filter K
-    PhaseRate = OrderedDict({})                                         # Carrier Phase L1 Rate
-    PhaseRateStep = OrderedDict({})                                     # Carrier Phase L1 Rate Step
-    CodeRate = OrderedDict({})                                          # Code C1 Rate
-    CodeRateStep = OrderedDict({})                                      # Code C1 Rate Step
+    DeltaStec = OrderedDict({})                                         # Delta STEC
     # Constants
     HatchConv = float(Conf["HATCH_STATE_F"])*int(Conf["HATCH_TIME"])    # Hatch Filter Convergence Condition   
 
@@ -160,10 +157,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         SatPreproObsInfo["L2"] = float(SatObs[ObsIdx["L2"]])
         # Get GPS L2 C/No
         SatPreproObsInfo["S2"] = float(SatObs[ObsIdx["S2"]])
-        # Get Instantaneous AATR
-        # SatPreproObsInfo["iAATR"] =
+        # Get t-1 Geom-free (in m)
+        SatPreproObsInfo["GeomFreePrev"] = PrevPreproObsInfo[SatLabel]["PrevGeomFree"]
         # Get Iono Mapping
-        # SatPreproObsInfo["Mpp"] =
+        SatPreproObsInfo["Mpp"] = computeIonoMappingFunction(SatPreproObsInfo["Elevation"])
 
         # Prepare output for the satellite
         PreproObsInfo[SatLabel] = SatPreproObsInfo
@@ -240,7 +237,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
                 RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
-                # print("DG for", Sat, "Epoch", Value["Sod"])
 
         # Cycle Slips
         # ----------------------------------------------------------
@@ -255,7 +251,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
                 if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
                     HacthFilterReset[Sat] = 1
                     RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
-                    # print("CS for", Sat, "Epoch", Value["Sod"])
                 else:
                     Value["ValidL1"] = 0
                     continue
@@ -289,11 +284,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the rate of the Carrier Phase exceeds the threshold
 
         if int(Conf["MAX_PHASE_RATE"][0]) == 1 and HacthFilterReset[Sat] == 0:
-            PhaseRate[Sat] = abs(Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])/DeltaT
-            if PhaseRate[Sat] > float(Conf["MAX_PHASE_RATE"][1]):
+            Value["PhaseRateL1"] = abs(Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])/DeltaT
+            if Value["PhaseRateL1"] > float(Conf["MAX_PHASE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                # print("MPR", Sat, "Epoch", Value["Sod"])
                 continue
 
         # Carrier Phase Rate Step L1
@@ -304,11 +298,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] == 0.0:
                 pass
             else:
-                PhaseRateStep[Sat] = abs(PhaseRate[Sat]-PrevPreproObsInfo[Sat]["PrevPhaseRateL1"])/DeltaT
-                if PhaseRateStep[Sat] > float(Conf["MAX_PHASE_RATE_STEP"][1]):
+                Value["PhaseRateStepL1"] = abs(Value["PhaseRateL1"]-PrevPreproObsInfo[Sat]["PrevPhaseRateL1"])/DeltaT
+                if Value["PhaseRateStepL1"] > float(Conf["MAX_PHASE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                    # print("MPRS", Sat, "Epoch", Value["Sod"])
                     continue
 
         # Code Rate C1
@@ -316,11 +309,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the rate of the Code C1 exceeds the threshold
 
         if int(Conf["MAX_CODE_RATE"][0]) == 1 and HacthFilterReset[Sat] == 0:
-            CodeRate[Sat] = abs(Value["SmoothC1"]-PrevPreproObsInfo[Sat]["PrevSmoothC1"])/DeltaT
-            if CodeRate[Sat] > float(Conf["MAX_CODE_RATE"][1]):
+            Value["RangeRateL1"] = abs(Value["SmoothC1"]-PrevPreproObsInfo[Sat]["PrevSmoothC1"])/DeltaT
+            if Value["RangeRateL1"] > float(Conf["MAX_CODE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                # print("MCR", Sat, "Epoch", Value["Sod"])
                 continue
 
         # Code Rate Step C1
@@ -331,11 +323,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if PrevPreproObsInfo[Sat]["PrevRangeRateL1"] == 0.0:
                 pass
             else:
-                CodeRateStep[Sat] = abs(CodeRate[Sat]-PrevPreproObsInfo[Sat]["PrevRangeRateL1"])/DeltaT
-                if CodeRateStep[Sat] > float(Conf["MAX_CODE_RATE_STEP"][1]):
+                Value["RangeRateStepL1"] = abs(Value["RangeRateL1"]-PrevPreproObsInfo[Sat]["PrevRangeRateL1"])/DeltaT
+                if Value["RangeRateStepL1"] > float(Conf["MAX_CODE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
-                    # print("MCRS", Sat, "Epoch", Value["Sod"])
                     continue
 
         # Carrier Phase L1 smoothing status
@@ -349,7 +340,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             Value["Status"] = 0
         
         # Update parameters for computing rates flags in PrevPreproObsInfo
-        UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth, PhaseRate, CodeRate)
+        UpdateRates(Sat, Value, PrevPreproObsInfo, HacthFilterReset, Ksmooth)
         
         ########################################################################
         # End of quality checks and signal smoothing
@@ -364,14 +355,28 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
         if Value["ValidL1"] == 1 and Value["L2"] > 0.0:
             Value["GeomFree"] = (Value["L1Meters"] - Value["L2"]*Const.GPS_L2_WAVE)/(1-Const.GPS_GAMMA_L1L2)
-
-        # VTEC Rate
+        else:
+            continue
+            
+        # VTEC Rate and AATR
         # ----------------------------------------------------------
         # Compute the iononospheric gradients
 
-        # if Value["GeomFree"] > 0.0 and Value[]:
-            # DeltaStec = (Value["GeomFree"] - Value["GeomFreePrev"])
+        if HacthFilterReset[Sat] == 0:
+            # Compute the STEC Rate
+            DeltaTGeom = Value["Sod"] - PrevPreproObsInfo[Sat]["PrevGeomFreeEpoch"]
+            DeltaStec[Sat] = (Value["GeomFree"] - Value["GeomFreePrev"])/DeltaTGeom
+            # Compute VTEC Rate
+            Value["VtecRate"] = 1000.0*(DeltaStec[Sat]/Value["Mpp"])
+            # Compute instantaneous AATR
+            Value["iAATR"] = Value["VtecRate"]/Value["Mpp"]
 
+        # Update parameters for computing Geometry Free combination in PrevPreproObsInfo
+        UpdateGeomFree(Sat, Value, PrevPreproObsInfo, HacthFilterReset)
+
+        ########################################################################
+        # End of signal combination
+        ########################################################################         
 
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch
     UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset)

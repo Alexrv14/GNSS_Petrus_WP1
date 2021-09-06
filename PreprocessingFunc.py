@@ -119,8 +119,6 @@ def UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HatchFilterReset):
         PrevPreproObsInfo[Sat]["PrevRej"] = Value["RejectionCause"]
         if Value["ValidL1"] == 1:
             PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
-        if HatchFilterReset[Sat] == 1:
-            PrevPreproObsInfo[Sat]["PrevEpoch"] = Value["Sod"]
     
         # Parameters for computing cycle slips
         if Value["ValidL1"] == 1:

@@ -236,7 +236,9 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             HacthFilterReset[Sat] = 1
             # Do not tag gaps due to the visibility periods as data gaps
             if PrevPreproObsInfo[Sat]["PrevRej"] != 2:
-                RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
+                Value["RejectionCause"] = REJECTION_CAUSE["DATA_GAP"]
+                # RaiseFlag(Sat, REJECTION_CAUSE["DATA_GAP"], PreproObsInfo)
+                print("DG", Sat, "Epoch", Value["Sod"])
 
         # Cycle Slips
         # ----------------------------------------------------------
@@ -250,7 +252,9 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if CsFlag == True:
                 if sum(PrevPreproObsInfo[Sat]["CsBuff"]) == 3:
                     HacthFilterReset[Sat] = 1
-                    RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
+                    Value["RejectionCause"] = REJECTION_CAUSE["CYCLE_SLIP"]
+                    # RaiseFlag(Sat, REJECTION_CAUSE["CYCLE_SLIP"], PreproObsInfo)
+                    print("CS", Sat, "Epoch", Value["Sod"])
                 else:
                     Value["ValidL1"] = 0
                     continue
@@ -267,6 +271,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Check if Hatch filter must be reset
         if ResetHatch(HacthFilterReset[Sat]) == True: 
             Ksmooth[Sat] = 0
+            # Ksmooth[Sat] = 1
             Value["SmoothC1"] = Value["C1"]
         else:
             Ksmooth[Sat] = PrevPreproObsInfo[Sat]["Ksmooth"] + DeltaT
@@ -284,10 +289,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the rate of the Carrier Phase exceeds the threshold
 
         if int(Conf["MAX_PHASE_RATE"][0]) == 1 and HacthFilterReset[Sat] == 0:
-            Value["PhaseRateL1"] = abs(Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])/DeltaT
-            if Value["PhaseRateL1"] > float(Conf["MAX_PHASE_RATE"][1]):
+            Value["PhaseRateL1"] = (Value["L1Meters"]-PrevPreproObsInfo[Sat]["PrevL1"])/DeltaT
+            if abs(Value["PhaseRateL1"]) > float(Conf["MAX_PHASE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+                print("PR", Sat, "Epoch", Value["Sod"])
                 continue
 
         # Carrier Phase Rate Step L1
@@ -298,10 +304,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if PrevPreproObsInfo[Sat]["PrevPhaseRateL1"] == 0.0:
                 pass
             else:
-                Value["PhaseRateStepL1"] = abs(Value["PhaseRateL1"]-PrevPreproObsInfo[Sat]["PrevPhaseRateL1"])/DeltaT
-                if Value["PhaseRateStepL1"] > float(Conf["MAX_PHASE_RATE_STEP"][1]):
+                Value["PhaseRateStepL1"] = (Value["PhaseRateL1"]-PrevPreproObsInfo[Sat]["PrevPhaseRateL1"])/DeltaT
+                if abs(Value["PhaseRateStepL1"]) > float(Conf["MAX_PHASE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_PHASE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+                    print("PRS", Sat, "Epoch", Value["Sod"])
                     continue
 
         # Code Rate C1
@@ -309,10 +316,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Raise a flag when the rate of the Code C1 exceeds the threshold
 
         if int(Conf["MAX_CODE_RATE"][0]) == 1 and HacthFilterReset[Sat] == 0:
-            Value["RangeRateL1"] = abs(Value["SmoothC1"]-PrevPreproObsInfo[Sat]["PrevSmoothC1"])/DeltaT
-            if Value["RangeRateL1"] > float(Conf["MAX_CODE_RATE"][1]):
+            Value["RangeRateL1"] = (Value["SmoothC1"]-PrevPreproObsInfo[Sat]["PrevSmoothC1"])/DeltaT
+            if abs(Value["RangeRateL1"]) > float(Conf["MAX_CODE_RATE"][1]):
                 RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE"], PreproObsInfo)
                 PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+                print("CR", Sat, "Epoch", Value["Sod"])
                 continue
 
         # Code Rate Step C1
@@ -323,10 +331,11 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if PrevPreproObsInfo[Sat]["PrevRangeRateL1"] == 0.0:
                 pass
             else:
-                Value["RangeRateStepL1"] = abs(Value["RangeRateL1"]-PrevPreproObsInfo[Sat]["PrevRangeRateL1"])/DeltaT
-                if Value["RangeRateStepL1"] > float(Conf["MAX_CODE_RATE_STEP"][1]):
+                Value["RangeRateStepL1"] = (Value["RangeRateL1"]-PrevPreproObsInfo[Sat]["PrevRangeRateL1"])/DeltaT
+                if abs(Value["RangeRateStepL1"]) > float(Conf["MAX_CODE_RATE_STEP"][1]):
                     RaiseFlag(Sat, REJECTION_CAUSE["MAX_CODE_RATE_STEP"], PreproObsInfo)
                     PrevPreproObsInfo[Sat]["ResetHatchFilter"] = 1
+                    print("CRS", Sat, "Epoch", Value["Sod"])
                     continue
 
         # Carrier Phase L1 smoothing status
@@ -380,6 +389,10 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
     # Update PrevPreproObsInfo corresponding to each satellite for next epoch
     UpdatePrevPro(PreproObsInfo, PrevPreproObsInfo, HacthFilterReset)
+
+    # for Sat,Value in PreproObsInfo.items():
+        # if Sat == "G31":
+            # print(Value["Sod"], Value["Status"])
 
     return PreproObsInfo
 

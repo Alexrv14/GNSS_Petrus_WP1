@@ -23,15 +23,15 @@ from collections import OrderedDict
 
 # Plots configuration flags
 Conf = OrderedDict({})
-Conf["PLOT_VIS"] = 0
+Conf["PLOT_VIS"] = 1
 Conf["PLOT_NSAT"] = 1
-Conf["PLOT_POLAR"] = 0
-Conf["PLOT_SATS_FLAGS"] = 0
-Conf["PLOT_C1_C1SMOOTHED_T"] = 0
-Conf["PLOT_C1_C1SMOOTHED_E"] = 0
-Conf["PLOT_C1_RATE"] = 0
-Conf["PLOT_L1_RATE"] = 0
-Conf["PLOT_C1_RATE_STEP"] = 0
-Conf["PLOT_L1_RATE_STEP"] = 0
-Conf["PLOT_VTEC"] = 0
-Conf["PLOT_AATR_INDEX"] = 0
+Conf["PLOT_POLAR"] = 1
+Conf["PLOT_SATS_FLAGS"] = 1
+Conf["PLOT_C1_C1SMOOTHED_T"] = 1
+Conf["PLOT_C1_C1SMOOTHED_E"] = 1
+Conf["PLOT_C1_RATE"] = 1
+Conf["PLOT_L1_RATE"] = 1
+Conf["PLOT_C1_RATE_STEP"] = 1
+Conf["PLOT_L1_RATE_STEP"] = 1
+Conf["PLOT_VTEC"] = 1
+Conf["PLOT_AATR_INDEX"] = 1

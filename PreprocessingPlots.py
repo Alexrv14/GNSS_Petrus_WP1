@@ -120,6 +120,7 @@ def plotNumSats(PreproObsFile, PreproObsData):
     PlotConf["xLim"] = [0,24]
 
     PlotConf["Grid"] = 1
+    PlotConf["Legend"] = ["Raw","Smoothed"]
 
     PlotConf["Marker"] = '-'
     PlotConf["LineWidth"] = 0.75
@@ -132,7 +133,7 @@ def plotNumSats(PreproObsFile, PreproObsData):
 
     for Second in Sod:
         FilterCond = PreproObsData[PreproIdx["SOD"]] == Second
-        DataEpoch = PreproObsData[PreproIdx["VALID"]][FilterCond]
+        DataEpoch = PreproObsData[PreproIdx["STATUS"]][FilterCond]
         DataEpoch.to_numpy()
         SatsRaw.append(len(DataEpoch))
         SatsSmooth.append(sum(DataEpoch))
@@ -216,8 +217,6 @@ def plotC1C1Smoothed(PreproObsFile, PreproObsData):
     PlotConf["FigSize"] = (8.4,7.6)
 
     PlotConf["yLabel"] = "C1 - C1 Smoothed [m]"
-    PlotConf["yLim"] = [-3,2.5]
-    PlotConf["yTicks"] = range(-2,3)
 
     PlotConf["xTicks"] = range(0,25)
     PlotConf["xLim"] = [0,24]
@@ -228,24 +227,19 @@ def plotC1C1Smoothed(PreproObsFile, PreproObsData):
     PlotConf["LineWidth"] = 0.25
 
     # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["C1"]].to_numpy()
-    PreproObsData[PreproIdx["C1SMOOTHED"]].to_numpy()
-    PreproObsData[PreproIdx["S1"]].to_numpy()
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    Code = PreproObsData[PreproIdx["C1"]][FilterCond].to_numpy()
+    CodeSmoothed = PreproObsData[PreproIdx["C1SMOOTHED"]][FilterCond].to_numpy()
 
-    Noise, Sod, Cn0 = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1:
-            Noise.append(PreproObsData[PreproIdx["C1"]][i]-PreproObsData[PreproIdx["C1SMOOTHED"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Cn0.append(PreproObsData[PreproIdx["S1"]][i])
+    Noise = []
+    for i in range(len(Code)):
+        Noise.append(Code[i]-CodeSmoothed[i])
 
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "C/N0 [dB-Hz]"
-    PlotConf["ColorBarMin"] = int(min(Cn0))
-    PlotConf["ColorBarMax"] = int(max(Cn0))
+    PlotConf["ColorBarMin"] = int(min(PreproObsData[PreproIdx["S1"]][FilterCond]))
+    PlotConf["ColorBarMax"] = int(max(PreproObsData[PreproIdx["S1"]][FilterCond]))
     PlotConf["ColorBarTicks"] = range(PlotConf["ColorBarMin"],PlotConf["ColorBarMax"],2)
 
     # Plotting
@@ -253,9 +247,9 @@ def plotC1C1Smoothed(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
     PlotConf["yData"][Label] = np.array(Noise)
-    PlotConf["zData"][Label] = np.array(Cn0)
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["S1"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -271,8 +265,6 @@ def plotC1C1SmoothedE(PreproObsFile, PreproObsData):
     PlotConf["FigSize"] = (8.4,7.6)
 
     PlotConf["yLabel"] = "C1 - C1 Smoothed [m]"
-    PlotConf["yLim"] = [-3,2.5]
-    PlotConf["yTicks"] = range(-2,3)
 
     PlotConf["xLabel"] = "Elevation [Deg]"
     PlotConf["xTicks"] = range(0,91,10)
@@ -284,24 +276,19 @@ def plotC1C1SmoothedE(PreproObsFile, PreproObsData):
     PlotConf["LineWidth"] = 0.25
 
     # Processing the data to be plotted
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["C1"]].to_numpy()
-    PreproObsData[PreproIdx["C1SMOOTHED"]].to_numpy()
-    PreproObsData[PreproIdx["S1"]].to_numpy()
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    Code = PreproObsData[PreproIdx["C1"]][FilterCond].to_numpy()
+    CodeSmoothed = PreproObsData[PreproIdx["C1SMOOTHED"]][FilterCond].to_numpy()
 
-    Noise, Elev, Cn0 = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["ELEV"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1:
-            Noise.append(PreproObsData[PreproIdx["C1"]][i]-PreproObsData[PreproIdx["C1SMOOTHED"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
-            Cn0.append(PreproObsData[PreproIdx["S1"]][i])
+    Noise = []
+    for i in range(len(Code)):
+        Noise.append(Code[i]-CodeSmoothed[i])
 
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "C/N0 [dB-Hz]"
-    PlotConf["ColorBarMin"] = int(min(Cn0))
-    PlotConf["ColorBarMax"] = int(max(Cn0))
+    PlotConf["ColorBarMin"] = int(min(PreproObsData[PreproIdx["S1"]][FilterCond]))
+    PlotConf["ColorBarMax"] = int(max(PreproObsData[PreproIdx["S1"]][FilterCond]))
     PlotConf["ColorBarTicks"] = range(PlotConf["ColorBarMin"],PlotConf["ColorBarMax"],2)
 
     # Plotting
@@ -309,9 +296,9 @@ def plotC1C1SmoothedE(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Elev)
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
     PlotConf["yData"][Label] = np.array(Noise)
-    PlotConf["zData"][Label] = np.array(Cn0)
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["S1"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -370,8 +357,6 @@ def plotCodeRate(PreproObsFile, PreproObsData):
     PlotConf["FigSize"] = (8.4,7.6)
 
     PlotConf["yLabel"] = "Code Rate [m/s]"
-    PlotConf["yLim"] = [-1000,1000]
-    PlotConf["yTicks"] = range(-1000,1000,100)
 
     PlotConf["xTicks"] = range(0,25)
     PlotConf["xLim"] = [0,24]
@@ -380,19 +365,6 @@ def plotCodeRate(PreproObsFile, PreproObsData):
 
     PlotConf["Marker"] = '.'
     PlotConf["LineWidth"] = 0.25
-
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["CODE RATE"]].to_numpy()
-
-    CodeRate, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["CODE RATE"]][i] !=0:
-            CodeRate.append(PreproObsData[PreproIdx["CODE RATE"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
 
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
@@ -406,9 +378,10 @@ def plotCodeRate(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(CodeRate)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["CODE RATE"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -424,8 +397,6 @@ def plotPhaseRate(PreproObsFile, PreproObsData):
     PlotConf["FigSize"] = (8.4,7.6)
 
     PlotConf["yLabel"] = "Phase Rate [m/s]"
-    PlotConf["yLim"] = [-1000,1000]
-    PlotConf["yTicks"] = range(-1000,1000,100)
 
     PlotConf["xTicks"] = range(0,25)
     PlotConf["xLim"] = [0,24]
@@ -434,19 +405,6 @@ def plotPhaseRate(PreproObsFile, PreproObsData):
 
     PlotConf["Marker"] = '.'
     PlotConf["LineWidth"] = 0.25
-
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["PHASE RATE"]].to_numpy()
-
-    PhaseRate, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["PHASE RATE"]][i] !=0:
-            PhaseRate.append(PreproObsData[PreproIdx["PHASE RATE"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
 
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
@@ -460,9 +418,10 @@ def plotPhaseRate(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(PhaseRate)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["PHASE RATE"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -487,19 +446,6 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     PlotConf["Marker"] = '+'
     PlotConf["LineWidth"] = 0.25
 
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["CODE ACC"]].to_numpy()
-
-    CodeRateStep, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["CODE ACC"]][i] !=0:
-            CodeRateStep.append(PreproObsData[PreproIdx["CODE ACC"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
-
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [Deg]"
@@ -512,9 +458,10 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(CodeRateStep)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["CODE ACC"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -539,19 +486,6 @@ def plotPhaseRateStep(PreproObsFile, PreproObsData):
     PlotConf["Marker"] = '+'
     PlotConf["LineWidth"] = 0.25
 
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["PHASE ACC"]].to_numpy()
-
-    PhaseRateStep, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["PHASE ACC"]][i] !=0:
-            PhaseRateStep.append(PreproObsData[PreproIdx["PHASE ACC"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
-
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [Deg]"
@@ -564,9 +498,10 @@ def plotPhaseRateStep(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(PhaseRateStep)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["PHASE ACC"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -591,19 +526,6 @@ def plotVtecGradient(PreproObsFile, PreproObsData):
     PlotConf["Marker"] = '+'
     PlotConf["LineWidth"] = 0.25
 
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["VTEC RATE"]].to_numpy()
-
-    Vtec, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["VTEC RATE"]][i] !=0:
-            Vtec.append(PreproObsData[PreproIdx["VTEC RATE"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
-
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [Deg]"
@@ -616,9 +538,10 @@ def plotVtecGradient(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(Vtec)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["VTEC RATE"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -643,19 +566,6 @@ def plotAatr(PreproObsFile, PreproObsData):
     PlotConf["Marker"] = '+'
     PlotConf["LineWidth"] = 0.25
 
-    # Processing the data to be plotted
-    PreproObsData[PreproIdx["SOD"]].to_numpy()
-    PreproObsData[PreproIdx["ELEV"]].to_numpy()
-    PreproObsData[PreproIdx["VALID"]].to_numpy()
-    PreproObsData[PreproIdx["iAATR"]].to_numpy()
-
-    Aatr, Sod, Elev = [], [], []
-    for i in range(len(PreproObsData[PreproIdx["SOD"]])):
-        if PreproObsData[PreproIdx["VALID"]][i] == 1 and PreproObsData[PreproIdx["iAATR"]][i] !=0:
-            Aatr.append(PreproObsData[PreproIdx["iAATR"]][i])
-            Sod.append(PreproObsData[PreproIdx["SOD"]][i])
-            Elev.append(PreproObsData[PreproIdx["ELEV"]][i])
-
     # Colorbar definition
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [Deg]"
@@ -668,9 +578,10 @@ def plotAatr(PreproObsFile, PreproObsData):
     PlotConf["yData"] = {}
     PlotConf["zData"] = {}
     Label = 0
-    PlotConf["xData"][Label] = np.array(Sod) / GnssConstants.S_IN_H
-    PlotConf["yData"][Label] = np.array(Aatr)
-    PlotConf["zData"][Label] = np.array(Elev)
+    FilterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterCond] / GnssConstants.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["iAATR"]][FilterCond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterCond]
 
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
@@ -691,7 +602,7 @@ def generatePreproPlots(PreproObsFile):
     # Satellite Visibility
     # ----------------------------------------------------------
     if(Conf["PLOT_VIS"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
         usecols=[PreproIdx["SOD"],PreproIdx["PRN"],PreproIdx["ELEV"],PreproIdx["STATUS"]])
 
@@ -703,9 +614,9 @@ def generatePreproPlots(PreproObsFile):
     # Plot Number of Satellites
     # ----------------------------------------------------------
     if(Conf["PLOT_NSAT"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["VALID"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["STATUS"]])
 
         print( 'Plot Number of Satellites vs Time ...')
       
@@ -715,7 +626,7 @@ def generatePreproPlots(PreproObsFile):
     # Plot Polar View
     # ----------------------------------------------------------
     if(Conf["PLOT_POLAR"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
         usecols=[PreproIdx["PRN"],PreproIdx["ELEV"],PreproIdx["AZIM"]])
 
@@ -727,7 +638,7 @@ def generatePreproPlots(PreproObsFile):
     # Plot Rejection Flags of satellite
     # ----------------------------------------------------------
     if(Conf["PLOT_SATS_FLAGS"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
         usecols=[PreproIdx["SOD"],PreproIdx["PRN"],PreproIdx["REJECT"]])
 
@@ -739,9 +650,9 @@ def generatePreproPlots(PreproObsFile):
     # Plot C1 - C1 Smoothed vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_C1_C1SMOOTHED_T"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["VALID"],PreproIdx["C1"],PreproIdx["C1SMOOTHED"],PreproIdx["S1"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["STATUS"],PreproIdx["C1"],PreproIdx["C1SMOOTHED"],PreproIdx["S1"]])
 
         print( 'Plot C1 - C1 Smoothed vs Time ...')
       
@@ -751,9 +662,9 @@ def generatePreproPlots(PreproObsFile):
     # Plot C1 - C1 Smoothed vs Elevation
     # ----------------------------------------------------------
     if(Conf["PLOT_C1_C1SMOOTHED_E"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["C1"],PreproIdx["C1SMOOTHED"],PreproIdx["S1"]])
+        usecols=[PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["C1"],PreproIdx["C1SMOOTHED"],PreproIdx["S1"]])
 
         print( 'Plot C1 - C1 Smoothed vs Elevation ...')
       
@@ -763,21 +674,21 @@ def generatePreproPlots(PreproObsFile):
     # Code Rate vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_C1_RATE"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["CODE RATE"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["CODE RATE"]])
 
         print( 'Plot Code Rate vs Time ...')
       
         # Configure plot and call plot generation function
         plotCodeRate(PreproObsFile, PreproObsData)
 
-    # Code Rate vs Time
+    # Phase Rate vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_L1_RATE"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["PHASE RATE"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["PHASE RATE"]])
 
         print( 'Plot Phase Rate vs Time ...')
       
@@ -787,9 +698,9 @@ def generatePreproPlots(PreproObsFile):
     # Code Rate Step vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_C1_RATE_STEP"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["CODE ACC"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["CODE ACC"]])
 
         print( 'Plot Code Rate Step vs Time ...')
       
@@ -799,9 +710,9 @@ def generatePreproPlots(PreproObsFile):
     # Phase Rate Step vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_L1_RATE_STEP"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["PHASE ACC"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["PHASE ACC"]])
 
         print( 'Plot Phase Rate Step vs Time ...')
       
@@ -811,9 +722,9 @@ def generatePreproPlots(PreproObsFile):
     # Phase Rate Step vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_VTEC"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["VTEC RATE"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["VTEC RATE"]])
 
         print( 'Plot VTEC Gradient vs Time ...')
       
@@ -823,9 +734,9 @@ def generatePreproPlots(PreproObsFile):
     # AATR Index vs Time
     # ----------------------------------------------------------
     if(Conf["PLOT_AATR_INDEX"] == 1):
-        # Read the cols we need from POS file
+        # Read the cols we need from PreproObsFile file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["VALID"],PreproIdx["iAATR"]])
+        usecols=[PreproIdx["SOD"],PreproIdx["ELEV"],PreproIdx["STATUS"],PreproIdx["iAATR"]])
 
         print( 'Plot AATR Index vs Time ...')
       
